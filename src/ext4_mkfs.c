@@ -53,6 +53,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+void *ext4_user_buf_alloc(size_t size);
+void ext4_user_buf_free(void *ptr, size_t size);
+
 struct fs_aux_info {
 	struct ext4_sblock *sb;
 	uint8_t *bg_desc_blk;
@@ -177,9 +180,10 @@ static int create_fs_aux_info(struct fs_aux_info *aux_info,
 		aux_info->len_blocks -= last_group_size;
 	}
 
-	aux_info->sb = ext4_calloc(1, EXT4_SUPERBLOCK_SIZE);
+	aux_info->sb = ext4_user_buf_alloc(EXT4_SUPERBLOCK_SIZE);
 	if (!aux_info->sb)
 		return ENOMEM;
+	memset(aux_info->sb, 0, sizeof(EXT4_SUPERBLOCK_SIZE));
 
 	aux_info->bg_desc_blk = ext4_calloc(1, info->block_size);
 	if (!aux_info->bg_desc_blk)
@@ -214,7 +218,7 @@ static int create_fs_aux_info(struct fs_aux_info *aux_info,
 static void release_fs_aux_info(struct fs_aux_info *aux_info)
 {
 	if (aux_info->sb)
-		ext4_free(aux_info->sb);
+		ext4_user_buf_free(aux_info->sb, EXT4_SUPERBLOCK_SIZE);
 	if (aux_info->bg_desc_blk)
 		ext4_free(aux_info->bg_desc_blk);
 }

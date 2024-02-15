@@ -57,6 +57,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+void *ext4_user_buf_alloc(size_t size);
+void ext4_user_buf_free(void *ptr, size_t size);
+
+
 /**@brief   Mount point OS dependent lock*/
 #define EXT4_MP_LOCK(_m)                                                       \
 	do {                                                                   \
@@ -565,21 +569,22 @@ static int __ext4_recover(const char *mount_point)
 
 	EXT4_MP_LOCK(mp);
 	if (ext4_sb_feature_com(&mp->fs.sb, EXT4_FCOM_HAS_JOURNAL)) {
-		struct jbd_fs *jbd_fs = ext4_calloc(1, sizeof(struct jbd_fs));
+		struct jbd_fs *jbd_fs = ext4_user_buf_alloc(sizeof(struct jbd_fs));
 		if (!jbd_fs) {
 			 r = ENOMEM;
 			 goto Finish;
 		}
+		memset(jbd_fs, 0, sizeof(struct jbd_fs));
 
 		r = jbd_get_fs(&mp->fs, jbd_fs);
 		if (r != EOK) {
-			ext4_free(jbd_fs);
+			ext4_user_buf_free(jbd_fs, sizeof(struct jbd_fs));
 			goto Finish;
 		}
 
 		r = jbd_recover(jbd_fs);
 		jbd_put_fs(jbd_fs);
-		ext4_free(jbd_fs);
+		ext4_user_buf_free(jbd_fs, sizeof(struct jbd_fs));
 	}
 	if (r == EOK && !mp->fs.read_only) {
 		uint32_t bgid;
